@@ -152,6 +152,8 @@ for epoch in range(EPOCHS):
     history['val_loss'].append(val_loss)
     history['val_acc'].append(100. *correct / len(val_loader.dataset))
 
+
+
 # 画图
 plt.figure(figsize=(10, 5))
 plt.subplot(1, 2, 1)

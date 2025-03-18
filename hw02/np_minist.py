@@ -301,5 +301,8 @@ if __name__ == '__main__':
         val_loss, val_acc = net.evaluate(X_val, y_val, batch_size=64)
         print(f'Epoch {(epoch+1)}, Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f} \
               lr: {net.lr} net-hiddensize:{net.W1.shape[1]} activation_func: tanh ')
-            
+    test_loss, test_acc = net.evaluate(X_test, y_test, batch_size=64)
+    print(f'Test Loss: {val_loss:.4f}, Test Acc: {val_acc:.4f} \
+        lr: {net.lr} net-hiddensize:{net.W1.shape[1]} activation_func: tanh ')
+    
         
