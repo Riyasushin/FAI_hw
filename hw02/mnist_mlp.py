@@ -14,8 +14,9 @@ from torch.utils.data import Dataset, DataLoader
 import numpy as np
 
 # # me
-import matplotlib
-matplotlib.use('WebAgg') 
+# import matplotlib
+# matplotlib.use('WebAgg') 
+
 # end Me
 
 from matplotlib import pyplot as plt
@@ -59,9 +60,13 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.fc1 = nn.Linear(784, 800)
-        self.fc2 = nn.Linear(800, 800)
-        self.fc3 = nn.Linear(800, 10)
+        # self.dropout1 = nn.Dropout(0.5)
+        # self.fc2 = nn.Linear(400, 800)
+        # self.dropout2 = nn.Dropout(0.4)
+        self.fc3 = nn.Linear(800, 400)
+        self.fc4 = nn.Linear(400, 10)
 
+        # default : 784 - 800 - 800 - 10
 
     def forward(self, x):
         '''
@@ -70,12 +75,15 @@ class Net(nn.Module):
         x = x.view(-1, 784)
         
         x = F.relu(self.fc1(x))
-
-        x = F.relu(self.fc2(x))
-
-        x = self.fc3(x)
+        # x = self.dropout1(x)
+        # x = F.relu(self.fc2(x))
+        # x = self.dropout2(x)
+        x = F.relu(self.fc3(x))
+        
+        x = self.fc4(x)
 
         return F.log_softmax(x, dim=1)
+
 
 # 实例化模型
 model = Net()
@@ -93,12 +101,17 @@ val_loader = DataLoader(MNISTDataset(X_val, y_val), \
 test_loader = DataLoader(MNISTDataset(X_test, y_test), \
                             batch_size=64, shuffle=True)
 
+
 # 定义训练参数
-EPOCHS = 3
+EPOCHS = 10
+
+FULL_INFO = False # My: print less information
 
 history = {'train_loss': [], 'train_acc': [], 'val_loss': [], 'val_acc': []}
 # 训练模型
 for epoch in range(EPOCHS):
+    print(f'Epoch {epoch + 1}:')
+
     # 训练模式
     model.train()
 
@@ -119,10 +132,11 @@ for epoch in range(EPOCHS):
         # 参数更新
         optimizer.step()
         # 打印训练信息
-        if batch_idx % 100 == 0:
+        if FULL_INFO and batch_idx % 100 == 0: # Modify here 
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))
+            
 
         loss_train.append(loss.item())
         pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
@@ -133,10 +147,12 @@ for epoch in range(EPOCHS):
 
     history['train_loss'].append(np.mean(loss_train))
     history['train_acc'].append(np.mean(acc_train))
-    print('Train set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)'.format(
-        np.mean(loss_train), correct_train, len(train_loader.dataset),
-        100. * correct_train / len(train_loader.dataset)))
-    
+    # print('Train set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)'.format(
+    #     np.mean(loss_train), correct_train, len(train_loader.dataset),
+    #     100. * correct_train / len(train_loader.dataset)))
+    print(f'Train set       : Average loss: {np.mean(loss_train):.4f}, '
+      f'Accuracy: {correct_train:>5}/{len(train_loader.dataset):<5} '
+      f'({100. * correct_train / len(train_loader.dataset):.2f}%)')    
 
     # 测试模式
     model.eval()
@@ -153,10 +169,14 @@ for epoch in range(EPOCHS):
 
     val_loss = np.mean(val_loss)
 
-    print('Validation set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)'.format(
-        val_loss, correct, len(val_loader.dataset),
-        100. * correct / len(val_loader.dataset)))
-
+    # print('Validation set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)'.format(
+    #     val_loss, correct, len(val_loader.dataset),
+    #     100. * correct / len(val_loader.dataset)))
+    print(f'Validation set  : Average loss: {val_loss:.4f}, '
+      f'Accuracy: {correct:>5}/{len(val_loader.dataset):<5} '
+      f'({100. * correct / len(val_loader.dataset):.2f}%)')
+    print('')
+    
     history['val_loss'].append(val_loss)
     history['val_acc'].append(100. *correct / len(val_loader.dataset))
 
@@ -164,13 +184,32 @@ for epoch in range(EPOCHS):
 
 # 画图
 plt.figure(figsize=(10, 5))
-plt.subplot(1, 2, 1)
+# plt.subplot(1, 2, 1)
+plt.subplot(1, 3, 1)
 plt.plot(history['train_loss'], label='train_loss')
 plt.plot(history['val_loss'], label='val_loss')
 plt.legend()
-plt.subplot(1, 2, 2)
+# plt.subplot(1, 2, 2)
+plt.subplot(1, 3, 2)
 plt.plot(history['train_acc'], label='train_acc')
 plt.plot(history['val_acc'], label='val_acc')
 plt.legend()
-plt.show()
 
+plt.subplot(1, 3, 3)
+plt.axis('off')  # 关闭坐标轴
+table_data = [['Epoch', 'Train Acc', 'Val Acc']]
+for i, val in enumerate(history['val_acc']):
+    train_acc_once = history['train_acc'][i]
+    table_data.append([i+1, f'{train_acc_once:.2f}', f'{val:.2f}'])
+
+table = plt.table(cellText=table_data, loc='center', cellLoc='center')
+table.auto_set_font_size(False)
+table.set_fontsize(10)
+table.scale(1, 1.5)
+[]
+name = input("请输入保存的名字：")
+
+plt.savefig(f'./02/{name}.png')  
+print(f"图片已保存为：./02/{name}.png")
+
+plt.show()

@@ -10,6 +10,9 @@ import numpy as np
 
 from tqdm  import tqdm
 
+# param
+activation_func = 'tanh'
+
 
 # 加载数据集,numpy格式
 X_train = np.load('./mnist/X_train.npy') # (60000, 784), 数值在0.0~1.0之间
@@ -35,7 +38,7 @@ def relu_prime(x):
     '''
     relu函数的导数
     '''
-    return (x > 0).astype(float)
+    return np.where(x > 0, 1, 0)
 
 
 def sigmoid(x):
@@ -74,31 +77,8 @@ def f(x):
 def f_prime(x):
     '''
     softmax函数的导数
-
-    对角线 S(1 - S)
-    非对角线 -S_i S_j
-
-    x: N, C
-    Return: 
-        -  (N, C, C)
     '''
-    # TODO
-    softmax_output = f(x)  # 计算 Softmax 输出
-    N, C = softmax_output.shape
-    # 创建一个三维数组来存储每个样本的雅可比矩阵
-    jacobian_matrix = np.zeros((N, C, C))
-    # 创建一个三维单位矩阵，用于区分对角线和非对角线元素
-    identity = np.eye(C)
-    # 计算雅可比矩阵的每个元素
-    for i in range(N):
-        # 对角线元素：S_i (1 - S_i)
-        jacobian_matrix[i] = np.diag(softmax_output[i] * (1 - softmax_output[i]))
-        # 非对角线元素：-S_i S_j
-        outer = -np.outer(softmax_output[i], softmax_output[i])
-        jacobian_matrix[i] += outer
-        # 利用单位矩阵将对角线元素恢复为正确值
-        jacobian_matrix[i] += identity * softmax_output[i] * (1 - softmax_output[i])
-    return jacobian_matrix
+    return f(x) * (1 - f(x))
 
 
     
@@ -111,9 +91,10 @@ def loss_fn(y_true, y_pred):
     
     cross entropy: 
     '''
+    # TODO ???
     epsilon = 1e-13
     y_pred = np.clip(y_pred, epsilon, 1 - epsilon)
-    return np.sum(y_true * np.log(y_pred)) / y_pred.shape[0]
+    return -np.sum(y_true * np.log(y_pred)) / y_pred.shape[0]
     
 
 def loss_fn_prime(y_true, y_pred):
@@ -121,7 +102,7 @@ def loss_fn_prime(y_true, y_pred):
     y_true: (batch_size, num_classes), one-hot编码
     y_pred: (batch_size, num_classes), softmax输出
 
-    交叉熵损失对 Softmax 输入的导数
+    交叉熵损失对 Softmax 输入的导数 !!!!!!
     '''
     return y_pred - y_true
 
@@ -145,18 +126,24 @@ class Network(object):
         初始化网络结构
         X:  N, input_size
             Linear input_size(I), hidden_size(H)      [dW1, db1] <- 
-        Linear_out_1(l_1): N, hidden_size(H)
+        z1: N, hidden_size(H)
             ReLU:                               [drelu]    <- 
-        ReLU_out(relu):   N, hidden_size(H)
-            Linear hidden_size(H), output_size(C)     [dW2, db2] <- [d_linear_2]
-        Linear_out_2(l_2): N, output_size(C)
-            Softmax                             
+        a1(relu):   N, hidden_size(H)
+            Linear hidden_size(H), hidden_size(H)     [dW2, db2] <- [d_linear_2]
+        z2: N, H
+            ReLU
+        a2(relu):   N, hidden_size(H)
+            Linear hidden_size(H), output_size(C)
+        z3: N, output_size(C)
         out: N, output_size
         '''
+        # TODO ??? input_size + 1
         self.W1 = init_weights((input_size, hidden_size))
         self.b1 = init_weights((hidden_size, ))
-        self.W2 = init_weights((hidden_size, output_size))
-        self.b2 = init_weights((output_size, ))
+        self.W2 = init_weights((hidden_size, hidden_size))
+        self.b2 = init_weights((hidden_size, ))
+        self.W3 = init_weights((hidden_size, output_size))
+        self.b3 = init_weights((output_size, ))
         self.lr = lr
 
     def forward(self, x):
@@ -170,78 +157,78 @@ class Network(object):
             - cache: MLP的中间量, 用于SGD
         '''
         cache = {}
-        cache['l1'] = np.matmul(x, self.W1) + self.b1 # N, H
-        # ReLU
-        # cache['relu'] = relu(cache['l1']) # N, H
-        # cache['l2'] = np.matmul(cache['relu'], self.W2) + self.b2 # N, C
-        # Sigmoid
-        # cache['sigmoid'] = sigmoid(cache['l1'])
-        # cache['l2'] = np.matmul(cache['sigmoid'], self.W2) + self.b2 # N, C
-        # tanh
-        cache['tanh'] = tanh(cache['l1'])
-        cache['l2'] = np.matmul(cache['tanh'], self.W2) + self.b2 # N, C
+        cache['input'] = x
+        cache['z1'] = np.matmul(x, self.W1) + self.b1
+        if activation_func == 'relu':
+            cache['a1'] = relu(cache['z1'])
+        elif activation_func == 'sigmoid':
+            cache['a1'] = sigmoid(cache['z1'])
+        elif activation_func == 'tanh':
+            cache['a1'] = tanh(cache['z1'])
+            
+        cache['z2'] = np.matmul(cache['a1'], self.W2) + self.b2 # N, H
+        if activation_func == 'relu':
+            cache['a2'] = relu(cache['z2'])
+        elif activation_func == 'sigmoid':
+            cache['a2'] = sigmoid(cache['z2'])
+        elif activation_func == 'tanh':
+            cache['a2'] = tanh(cache['z2'])
+          
+        cache['z3'] = np.matmul(cache['a2'], self.W3) + self.b3 # N, H
+        cache['a3'] = f(cache['z3'])      
 
-        out = f(cache['l2'])
+
+        out = cache['a3']
         return out, cache
-
-    # TODO write backward()
 
 
     def step(self, x_batch, y_batch):
         '''
         一步训练
         '''
-
+        
         # 前向传播
-        out, cache = self.forward(x_batch)
+        y_pred, cache = self.forward(x_batch)
         
         # 计算损失和准确率
-        loss = loss_fn(y_batch, out)
-        chosen_indexs = np.argmax(out, axis=1) # N
-        idx_first = [i for i in range(y_batch.shape[0])]
-        acc_num = (y_batch[idx_first, chosen_indexs] == 1).astype(int)
-        acc = acc_num.mean()
+        loss = loss_fn(y_batch, y_pred)
+
+        chosen_indexs = np.argmax(y_pred, axis=1) # N
+        true_indexs = np.argmax(y_batch, axis=1)
+        acc = np.mean(chosen_indexs == true_indexs)
         # print(acc_num.shape) # (64, )
         
         # 反向传播
+        d_a3 = loss_fn_prime(y_batch, y_pred) # N, C
+        d_W3 = np.matmul(cache['a2'].T, d_a3)
+        d_b3 = np.sum(d_a3, axis=0)
 
-        d_linear_2 = loss_fn_prime(y_batch, out) # N, C
+        if activation_func == 'relu':
+            d_a2 = np.matmul(d_a3, self.W3.T) * relu_prime(cache['z2'])
+        elif activation_func == 'sigmoid':
+            d_a2 = np.matmul(d_a3, self.W3.T) * sigmoid_prime(cache['z2'])
+        elif activation_func == 'tanh':
+            d_a2 = np.matmul(d_a3, self.W3.T) * tanh_prime(cache['z2'])
+        d_W2 = np.matmul(cache['a1'].T, d_a2)
+        d_b2 = np.sum(d_a2, axis=0)
 
-        # ReLU
-        # dW2 = np.matmul(cache['relu'].T, d_linear_2) # X.T @ delta; H, C
-        # Sigmoid
-        # dW2 = np.matmul(cache['sigmoid'].T, d_linear_2)
-        # Tanh
-        dW2 = np.matmul(cache['tanh'].T, d_linear_2)
-
-        db2 = np.sum(d_linear_2, axis=0)  # (C,)
-
-        # ReLu
-        # d_relu = np.matmul(d_linear_2, self.W2.T) # N, H
-        # d_linear_1 = d_relu * relu_prime(cache['l1']) # N, H
-        # Sigmoid
-        # d_sigmoid = np.matmul(d_linear_2, self.W2.T) # N, H
-        # d_linear_1 = d_sigmoid * sigmoid_prime(cache['l1']) # N, H
-        # Tanh
-        d_tanh = np.matmul(d_linear_2, self.W2.T) # N, H
-        d_linear_1 = d_tanh * tanh_prime(cache['l1']) # N, H
-
-        dW1 = np.matmul(x_batch.T, d_linear_1)  # (I, H)
-        db1 = np.sum(d_linear_1, axis=0)  # (H,)
-
-        batch_size = y_batch.shape[0]
-        dW2 /= batch_size
-        db2 /= batch_size
-        dW1 /= batch_size
-        db1 /= batch_size
-
-
+        if activation_func == 'relu':
+            d_a1 = np.matmul(d_a2, self.W2.T) * relu_prime(cache['z1'])
+        elif activation_func == 'sigmoid':
+            d_a1 = np.matmul(d_a2, self.W2.T) * sigmoid_prime(cache['z1'])
+        elif activation_func == 'tanh':
+            d_a1 = np.matmul(d_a2, self.W2.T) * tanh_prime(cache['z1'])
+        d_W1 = np.matmul(cache['input'].T, d_a1)
+        d_b1 = np.sum(d_a1, axis=0)
 
         # 更新权重
-        self.W2 -= self.lr * dW2
-        self.b2 -= self.lr * db2
-        self.W1 -= self.lr * dW1
-        self.b1 -= self.lr * db1
+        batch_size = y_batch.shape[0]
+        self.W3 -= self.lr * d_W3 / batch_size
+        self.b3 -= self.lr * d_b3 / batch_size
+        self.W2 -= self.lr * d_W2 / batch_size
+        self.b2 -= self.lr * d_b2 / batch_size
+        self.W1 -= self.lr * d_W1 / batch_size
+        self.b1 -= self.lr * d_b1 / batch_size
 
         return loss.item(), acc
 
@@ -293,16 +280,15 @@ if __name__ == '__main__':
 
             # print(f'loss:{loss}, batch_acc:{acc}')
 
-            # 更新进度条 TODO
             # print(sum(losses) / cnt)
             # print(sum(accuracies) / cnt)
             p_bar.set_description(f'Epoch {epoch + 1},  Loss: {np.mean(losses):.4f},  Acc: {np.mean(accuracies):.4f}')
 
         val_loss, val_acc = net.evaluate(X_val, y_val, batch_size=64)
         print(f'Epoch {(epoch+1)}, Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f} \
-              lr: {net.lr} net-hiddensize:{net.W1.shape[1]} activation_func: tanh ')
+              lr: {net.lr} net-hiddensize:{net.W1.shape[1]} activation_func: {activation_func} ')
     test_loss, test_acc = net.evaluate(X_test, y_test, batch_size=64)
     print(f'Test Loss: {val_loss:.4f}, Test Acc: {val_acc:.4f} \
-        lr: {net.lr} net-hiddensize:{net.W1.shape[1]} activation_func: tanh ')
+        lr: {net.lr} net-hiddensize:{net.W1.shape[1]} activation_func: {activation_func} ')
     
         
