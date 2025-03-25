@@ -144,6 +144,9 @@ class Network(object):
         self.b2 = init_weights((hidden_size, ))
         self.W3 = init_weights((hidden_size, output_size))
         self.b3 = init_weights((output_size, ))
+
+        # self.W2 = init_weights((hidden_size, output_size))
+        # self.b2 = init_weights((output_size, ))
         self.lr = lr
 
     def forward(self, x):
@@ -175,8 +178,10 @@ class Network(object):
             cache['a2'] = tanh(cache['z2'])
           
         cache['z3'] = np.matmul(cache['a2'], self.W3) + self.b3 # N, H
-        cache['a3'] = f(cache['z3'])      
-
+        cache['a3'] = f(cache['z3'])     
+         
+        # cache['z2'] = np.matmul(cache['a1'], self.W2) + self.b2 # N, H
+        # cache['a2'] = f(cache['z2'])    
 
         out = cache['a3']
         return out, cache
@@ -202,6 +207,10 @@ class Network(object):
         d_a3 = loss_fn_prime(y_batch, y_pred) # N, C
         d_W3 = np.matmul(cache['a2'].T, d_a3)
         d_b3 = np.sum(d_a3, axis=0)
+
+        # d_a2 = loss_fn_prime(y_batch, y_pred) # N, C
+        # d_W2 = np.matmul(cache['a1'].T, d_a2)
+        # d_b2 = np.sum(d_a2, axis=0)
 
         if activation_func == 'relu':
             d_a2 = np.matmul(d_a3, self.W3.T) * relu_prime(cache['z2'])
@@ -259,7 +268,7 @@ class Network(object):
 
 if __name__ == '__main__':
     # 训练网络
-    net = Network(input_size=784, hidden_size=128, output_size=10, lr=0.01)
+    net = Network(input_size=784, hidden_size=20, output_size=10, lr=0.01)
     for epoch in range(10):
         losses = []
         accuracies = []
