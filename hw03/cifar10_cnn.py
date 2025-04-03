@@ -14,7 +14,6 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-import datetime
 
 # 定义超参数
 batch_size = 64
@@ -179,8 +178,9 @@ class ResNetTest(nn.Module):
         return out
 
 # 实例化模型
-# model = Net()
-model = ResNetTest(BasicBlockForResNet, [2, 2, 2, 2])
+model = Net(32, 32)
+# model = ResNetTest(BasicBlockForResNet, [2, 2, 2, 2])
+
 
 use_mlu = False # 爱了学长，喜欢这个判断
 try:
@@ -204,12 +204,8 @@ model = model.to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=5e-4) ## TODO
 
-
 # 训练模型
 for epoch in range(num_epochs):
-
-    # for log
-    epoch_log = f"**Epoch {epoch + 1}/{num_epochs}:**\n"
 
     # 训练模式
     model.train()
@@ -234,9 +230,6 @@ for epoch in range(num_epochs):
             train_log = 'Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Accuracy: {:.2f}%'\
                     .format(epoch + 1, num_epochs, i + 1, len(train_loader), loss.item(), accuracy.item() * 100)
             print(train_log)
-            # total_log += train_log + "\n\n" # 不需要
-    # epoch train_acc
-    epoch_log += '- train_acc: {:.2f}%'.format(accuracy.item() * 100) + '    train_loss: {:.4f}\n'.format(loss.item())
 
     # 测试模式
     model.eval()
@@ -256,13 +249,6 @@ for epoch in range(num_epochs):
         print(test_log)
         # total_log += ('**' + test_log + '**' + "\n\n" + '\n')
 
-        # epoch test_acc
-        epoch_log += '- test_acc:   {:>4.2f}%'.format(test_acc) + '    test_loss:   {:>4.4f}\n'.format(loss.item())
-    epoch_log += '\n'
-    # if DEBUG:
-    print(epoch_log)
-    total_log += epoch_log + '\n'
-
     # early stopping
     if (test_acc > best_accuracy):
         best_accuracy = test_acc
@@ -273,25 +259,3 @@ for epoch in range(num_epochs):
         if counter > patience:
             print("Early stopping")
             break
-
-# 训练完成后请求用户输入消息
-message = input("请输入消息: ")
-
-# 获取当前时间
-current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-# 将信息写入log.md文件
-with open('log.md', 'a') as f:
-    f.write(f"## {current_time}\n")
-    f.write(f"**Message:**\n     {message}\n\n")
-    f.write(f'**Hyperparameters:**\
-                \n- batch_size={batch_size},\
-                \n- learning_rate={learning_rate},\
-                \n- num_epochs={num_epochs},\
-                \n- device={device}\
-                \n- loss_function={str(criterion)}\
-                \n- optim=Adam \n\n')
-    f.write(f"**Model:**\n     {model}\n\n")
-    f.write(f"{total_log}\n\n")
-
-print("训练日志已写入log.md文件")
