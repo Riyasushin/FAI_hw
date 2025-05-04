@@ -21,6 +21,8 @@ flags = {
     "sample_size": 64,
     "checkpoint_dir": "checkpoints/{}".format(start_time),
     "sample_dir": "samples/{}".format(start_time),
+
+    # Added by RiJo
     "g_train_iter_per_epoch": 2,
     "d_fake_loss_weight": 1,
     "d_real_loss_weight": 1,

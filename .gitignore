@@ -2,3 +2,16 @@
 *.png
 
 */*/.env
+play*
+hw03/training_logs/*
+hw03/
+
+*pth
+hw04_GAN/data/*
+hw05_RNN/data/*
+
+*.docx
+
+*/.vscode
+
+
